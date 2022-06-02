@@ -1,0 +1,60 @@
+from concurrent.futures import ThreadPoolExecutor
+from PIL import Image
+import logging
+
+
+logger = logging.getLogger("My Logger")
+logger.setLevel(logging.DEBUG)
+console_handler = logging.StreamHandler()
+file_handler = logging.FileHandler('file.log', mode='w')
+console_handler.setLevel(logging.INFO)
+file_handler.setLevel(logging.DEBUG)
+logger.addHandler(console_handler)
+logger.addHandler(file_handler)
+
+
+im = Image.open('strose_pennant.jpg', 'r')  # opens image package from PIL
+width, height = im.size                     # returns a tuple
+
+
+def listworker(worklist):
+    row = list()
+
+    for pixel in worklist:
+        new_pixel = sum(pixel) // len(pixel)  # integer division
+        new_pixel = tuple([new_pixel]*3)
+        row.append(new_pixel)
+    logger.debug(row)
+    return row
+
+
+if __name__ == "__main__":
+    tp = ThreadPoolExecutor(10)     # creates 20 thread limit
+    ftrs = []                                   # creates empty list for ftrs
+    new_image = Image.new(im.mode, im.size)     # creates new image
+    new_pixel_map = new_image.load()            # creates new image map
+    thread_list = []                            # creates empty thread list
+
+
+    for x in range(width):
+        old_row = []
+        for y in range(height):
+            old_row.append(im.getpixel((x,y)))
+        f = tp.submit(listworker, old_row)
+        logger.debug(old_row)
+        ftrs.append(f)
+
+    task_x = 0
+    for task in ftrs:
+        bw_pixels = task.result()
+        logger.debug(len(bw_pixels))
+        task_y = 0
+        for item in bw_pixels:
+            new_pixel_map[task_x, task_y] = item
+            task_y += 1
+        task_x += 1
+
+
+im.show()                                                   # show original image
+new_image.show()                                            # show new image
+pass
